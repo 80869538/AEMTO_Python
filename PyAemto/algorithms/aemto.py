@@ -4,25 +4,28 @@ from pymoo.core.population import Population
 from pymoo.algorithms.soo.nonconvex.de import DE
 from pymoo.operators.sampling.lhs import LHS
 from copy import copy, deepcopy
-
+from pymoo.algorithms.soo.nonconvex.ga import GA
+# from de import DE
+import json
 
 sys.path.append('../../')
 from PyAemto.problems.mtobenchmark.rastrigin_T import Rastrigin_T
 from PyAemto.problems.mtobenchmark.griewank_T import Griewank_T
 
-from PyAemto.core.Tasks import Tasks as Tasks
+from PyAemto.core.Tasks_O import Tasks as Tasks
 import PyAemto.core.ProblemInfo as ProbInfo
 
 EPS = 1e-10
 run_id = 0
 p_tsf_lb = 0.05  # lower bound of transfer probability
-p_tsf_ub = 0.70  #upper ...
+p_tsf_ub = 0.7  #upper ...
 alpha=0.3 #reward update rate
 pbase=0.3
 ntasks = 2 #test purpose
-Gmax = 1 #max generation
+Gmax = 1000 #max generation
 MTO = True #enable knowledge transfer between tasks
 pop_size = 100
+run = 20
 
 tasks_tsf_cnt = np.array([],dtype=np.uint32)
 
@@ -34,8 +37,10 @@ record_tasks = [] #record of each task
 
 ret = np.array([])
 
-def AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha):
-    tasks = Tasks(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha)
+
+
+def AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha, pbase):
+    tasks = Tasks(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha, pbase)
     
     for g in range(Gmax):
         #This step used task selection prob directly as task fintness 
@@ -61,12 +66,33 @@ def AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha):
         t = fitness_sum > pointers #find when > is true (n_pointers, n_task, n_task)
         S = np.diff(t.sum(axis = 0),prepend=0) #count true value, since result is accumulated, find diff
         assert(np.diag(S).sum() == 0) #diag should keep zero, no self transfer
+        print("samples selection matrix")
         print(S)
+        print(tasks.Tpdf) #different from the orginal code, refer to the orginal, this implementation proportional to the pdf
 
-        selected = Population()
+        # tasks.eval_other_tasks(0,S)
+        # tasks.reuse(0)
+        # tasks.updateSpdf(0)
 
-        tasks.eval_task(0,S)
-        tasks.reuse(0)
+        for i,e in enumerate(need_transfer):
+            if e:
+                print("task reuse for " + str(i))
+                tasks.eval_other_tasks(i,S)
+                tasks.reuse(i)
+                tasks.updateSpdf(i)
+            else:
+                tasks.eval_self_task(i)
+            
+            tasks.update_tsf_pdf(i)
+            print("Optimal Solution")
+
+            print(tasks.get_result(i).opt.get("F"))
+   
+
+
+                
+
+
 
 
 
@@ -76,25 +102,32 @@ def AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha):
 
         
 
+# def loadData():
 
 
 
+filename = '../../data/mtobenchmark/problem1/rotation_1.txt'
+M1 = np.loadtxt(filename, delimiter=' ', skiprows=0, usecols=range(0,50),dtype=float)
+filename = '../../data/mtobenchmark/problem1/rotation_2.txt'
+M2 = np.loadtxt(filename, delimiter=' ', skiprows=0, usecols=range(0,50),dtype=float)
 
-problem1 = Griewank_T(n_var=50)
-problem2 = Rastrigin_T(n_var=50)
-problem3 = Rastrigin_T(n_var=50)
+
+
+problem1 = Griewank_T(n_var=50, M=M1)
+problem2 = Rastrigin_T(n_var=50, M=M2)
+
+
 algorithm =  DE(
         pop_size=pop_size,
-        sampling=LHS(),
         variant="DE/rand/1/bin",
         CR=0.9,
-        dither="vector",
         jitter=False
     )
-problems = [problem1, problem2,problem3]
+problems = [problem1, problem2]
 algorithms = list(map(lambda problem:deepcopy(algorithm).setup(problem),problems))
 
-AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha = alpha)
+AEMTO(problems, algorithms, p_tsf_ub, p_tsf_lb, MTO, alpha = alpha, pbase = pbase)
+
 
 
 

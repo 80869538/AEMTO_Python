@@ -87,50 +87,62 @@ class Tasks:
 
         for i,ind in enumerate(self.selected_ind):
             if i != t:
-                other_pop = deepcopy(ind)
+                other_pop = ind
                 other_pop_size = other_pop.size
 
                 if other_pop_size == 0: 
                     continue
-                parents_from_other = Population.merge(parents_from_other,other_pop)
+                rand_indexs = random_permuations(1,other_pop_size)
+                mu = [other_pop[rand_indexs[k % other_pop_size]] for k in range(N)]
+                parents = list(zip(mu,pop))
+                crossover=BinomialCrossover(prob=1.0)
+                _off = crossover(self.tasks[t].problem, parents) #2 Parents ==> 2 Children
+                _off.set("skill_factors", i)
+                off = Population.merge(off,_off)
 
-        if parents_from_other.size <= 0:
+        # if parents_from_other.size <= 0:
+        #     return 0.0
+        if off.size <= 0:
             return 0.0
 
-        rand_indexs = random_permuations(1,len(parents_from_other))
-        parents_from_other = parents_from_other[rand_indexs]
-        update_num = 0
-        mu = [parents_from_other[rand_indexs[k % len(parents_from_other)]] for k in range(N)]
-        parents = (list(zip(mu,pop)))
-        skill_factors = [i.get("skill_factors") for i in mu]
+        rand_indexs = random_permuations(1,off.size)
+        off = off[rand_indexs]
+        self.tasks[t].eval(off)
+
+        # rand_indexs = random_permuations(1,len(parents_from_other))
+        # parents_from_other = parents_from_other[rand_indexs]
+        # update_num = 0
+        # mu = [parents_from_other[rand_indexs[k % len(parents_from_other)]] for k in range(N)]
+        # parents = (list(zip(mu,pop)))
+        # skill_factors = [i.get("skill_factors") for i in mu]
 
 
-        crossover=BinomialCrossover(prob=1.0,n_offsprings=1)
-        _off = crossover(self.tasks[t].problem, parents) #2 Parents ==> 2 Children
-        _off.set("skill_factors",skill_factors)
-        off = Population.merge(off,_off)
+        # crossover=BinomialCrossover(prob=1.0,n_offsprings=1)
+        # _off = crossover(self.tasks[t].problem, parents) #2 Parents ==> 2 Children
+        # _off.set("skill_factors",skill_factors)
+        # off = Population.merge(off,_off)
 
 
-        off.get("F")
+        # off.get("F")
 
-        self.tasks[t].eval(off) 
+        # self.tasks[t].eval(off) 
 
         #Different from the orginal implementation
-        pop_F = pop.get("F")
-        off_F = off.get("F")
+        # pop_F = pop.get("F")
+        # off_F = off.get("F")
 
 
-        for i in range(pop.size):
-            if pop_F[i] > off_F[i]:
-                pop[i] = off[i]
-                pop[i].set("skill_factors",-1)
-                update_num+=1 
+        # for i in range(pop.size):
+        #     if pop_F[i] > off_F[i]:
+        #         pop[i] = off[i]
+        #         pop[i].set("skill_factors",-1)
+        #         update_num+=1 
 
-        r_tsf = update_num / N
+        # r_tsf = update_num / N
         
 
     
-        self.Tr[t,1] =   self.Tr[t,1] * self.alpha + (1 - self.alpha) * r_tsf
+        # self.Tr[t,1] =   self.Tr[t,1] * self.alpha + (1 - self.alpha) * r_tsf
         # pop =self.selected_ind[t]
         # off = Population.empty()
         # N = pop.size
@@ -161,38 +173,37 @@ class Tasks:
         # self.tasks[t].eval(off)  #evaluate offsprings
 
         # #Different from the orginal implementation
-        # pop_F = pop.get("F")
-        # off_F = off.get("F")
-        # # pop_F = np.reshape(pop_F, (N,1))
-        # # off_F = np.reshape(off_F, (1,off.size))
-        # # off_better = off_F<pop_F
+        pop_F = pop.get("F")
+        off_F = off.get("F")
+        pop_F = np.reshape(pop_F, (N,1))
+        off_F = np.reshape(off_F, (1,off.size))
+        off_better = off_F<pop_F
 
-        # # pop_worse_than=off_better.sum(axis=1)
-        # # off_better_than = off_better.sum(axis=0)
-        # # print("shape")
+        pop_worse_than=off_better.sum(axis=1)
+        off_better_than = off_better.sum(axis=0)
+        print("shape")
 
-        # # print(off_better_than.shape)
+        print(off_better_than.shape)
 
 
-        # # argsort_pop_worse_than= np.argsort(pop_worse_than)[::-1]
-        # # argsort_better_than = np.argsort(off_better_than)[::-1]
+        argsort_pop_worse_than= np.argsort(pop_worse_than)[::-1]
+        argsort_better_than = np.argsort(off_better_than)[::-1]
 
         # for i in range(pop.size):
         #     if pop_F[i] > off_F[i]:
         #         pop[i] = off[i]
         #         # pop[i].set("skill_factors",-1)
         #         update_num+=1 
-
-        # # for i in range(argsort_pop_worse_than.size):
-        # #     if pop.get("F")[argsort_pop_worse_than[i]] > off.get("F")[argsort_better_than[i]]:
-        # #         pop[argsort_pop_worse_than[i]] = off[argsort_pop_worse_than[i]]
-        # #         update_num+=1            
-        # r_tsf = update_num / N
+        update_num = 0
+        for i in range(argsort_pop_worse_than.size):
+            if pop.get("F")[argsort_pop_worse_than[i]] > off.get("F")[argsort_better_than[i]]:
+                pop[argsort_pop_worse_than[i]] = off[argsort_pop_worse_than[i]]
+                update_num+=1            
+        r_tsf = update_num / N
         
-        # print(r_tsf)
 
     
-        # self.Tr[t,1] =   self.Tr[t,1] * self.alpha + (1 - self.alpha) * r_tsf
+        self.Tr[t,1] =   self.Tr[t,1] * self.alpha + (1 - self.alpha) * r_tsf
     
     def updateSpdf(self, t):
         task_rewards = self.Sr[t]
@@ -216,30 +227,3 @@ class Tasks:
 
     def update_tsf_pdf(self, t):
         self.Tpdf[t] = self.p_tsf_lb + self.Tr[t,1] * (self.p_tsf_ub - self.p_tsf_lb) / (self.Tr[t,1] + self.Tr[t,0] + self.eps)
-
-
-                
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-        
-       
-
-
-
-        
-
-
-
-

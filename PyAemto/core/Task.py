@@ -2,6 +2,7 @@ from pymoo.optimize import minimize
 import sys
 from copy import copy, deepcopy
 from pymoo.core.population import Population
+from pymoo.util.roulette import RouletteWheelSelection
 
 sys.path.append('../../')
 
@@ -21,7 +22,10 @@ class Task:
     def select(self, num_sel):
         if num_sel > 0:
             pop = deepcopy(self.algorithm.pop)
-            return FPS(pop, num_sel)
+            self.algorithm.evaluator.eval(self.problem, pop, algorithm=self.algorithm)
+            select = RouletteWheelSelection(pop.get("F"),False)
+            # return FPS(pop, num_sel)
+            return pop[select.next(num_sel)]
         else:
             return Population.empty()
     
@@ -32,10 +36,9 @@ class Task:
     def get_pop(self):
         pop = self.algorithm.pop
         return pop
-        
-    def solve(self):
-        res = minimize(self.problem, self.algorithm,
-               ('n_gen', 10),
-               seed=1,
-               verbose=True)
-        return res
+    
+    def result(self):
+        return self.algorithm.result()
+    
+    def next(self):
+        self.algorithm.next()

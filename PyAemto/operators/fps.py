@@ -4,6 +4,7 @@ from pymoo.core.population import Population
 
 def FPS(pop, num_sel):
     F = pop.get("F")
+    F = F.max() - F
     P = F/F.sum()
     wheel = np.add.accumulate(P)
     selected = []
